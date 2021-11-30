@@ -62,7 +62,6 @@ class MultiPassPDQNAgentRefactored:
         self.device = torch.device(device)
 
         print(self.num_actions+self.action_parameter_size)
-        self.replay_memory = Memory(self.replay_memory_size, env.observation_space.spaces[0].shape, (1+self.action_parameter_size,))
         self.actor = MultiPassQActor(env.observation_space.spaces[0].shape[0], self.num_actions,
                                      self.action_parameter_sizes, hidden_layers=self.hidden_layers_actor).to(device)
         self.actor_target = MultiPassQActor(env.observation_space.spaces[0].shape[0], self.num_actions,
@@ -189,25 +188,17 @@ class MultiPassPDQNAgentRefactored:
 
         return grad
 
-    def step(self, state, action, reward, next_state, terminal):
-        act, all_action_parameters = action
+    def learn(self, replay_buffer: Memory):
         self._step += 1
-
-        # self._add_sample(state, np.concatenate((all_actions.data, all_action_parameters.data)).ravel(), reward, next_state, terminal)
-        self._add_sample(state, np.concatenate(([act], all_action_parameters)).ravel(), reward, next_state, terminal=terminal)
         if self._step >= self.batch_size and self._step >= self.steps_before_learning:
-            self._optimize_td_loss()
+            self._optimize_td_loss(replay_buffer)
             self.updates += 1
 
-    def _add_sample(self, state, action, reward, next_state, terminal):
-        assert len(action) == 1 + self.action_parameter_size
-        self.replay_memory.append(state, action, reward, next_state, terminal=terminal)
-
-    def _optimize_td_loss(self):
+    def _optimize_td_loss(self, replay_buffer: Memory):
         if self._step < self.batch_size or self._step < self.steps_before_learning:
             return
         # Sample a batch from replay memory
-        states, actions, rewards, next_states, terminals = self.replay_memory.sample(self.batch_size)
+        states, actions, rewards, next_states, terminals = replay_buffer.sample(self.batch_size)
 
         states = torch.from_numpy(states).to(self.device)
         actions_combined = torch.from_numpy(actions).to(self.device)  # make sure to separate actions and parameters

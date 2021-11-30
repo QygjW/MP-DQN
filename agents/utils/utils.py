@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 
 from gym.wrappers.monitor import Monitor
 
+from agents.memory.memory import Memory
+
 if TYPE_CHECKING:
     from agents.pdqn_multipass_refactored import MultiPassPDQNAgentRefactored
 from pyhocon.config_tree import ConfigTree
@@ -16,6 +18,21 @@ from pyhocon.config_tree import ConfigTree
 from common.platform_domain import PlatformFlattenedActionWrapper
 from common.wrappers import ScaledStateWrapper, ScaledParameterisedActionWrapper
 
+
+def create_replay_buffer(env, conf: ConfigTree) -> Memory:
+    """
+    Creates an empty replay buffer.
+
+    :param conf: the config which has size of the replay buffer in key size.
+    :param env: a gym environment; only the sizes of action and observation space are used.
+    :returns: a replay buffer, an instance of Memory.
+    """
+    replay_buffer_size = conf.get('size', 10_000)
+    num_actions = env.action_space.spaces[0].n
+    action_parameter_sizes = np.array([env.action_space.spaces[i].shape[0] for i in range(1, num_actions+1)])
+    action_parameter_size = int(action_parameter_sizes.sum())
+    replay_buffer = Memory(replay_buffer_size, env.observation_space.spaces[0].shape, (1 + action_parameter_size,))
+    return replay_buffer
 
 def create_logging_dirs(conf: ConfigTree):
     """Creates the necessary.

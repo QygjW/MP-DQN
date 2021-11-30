@@ -5,7 +5,8 @@ import gym
 import gym_platform
 from gym.wrappers import Monitor
 
-from agents.utils.utils import action_convertor, create_logging_dirs, visualize_and_save_frame, create_and_wrap_env, evaluate
+from agents.utils.utils import action_convertor, create_logging_dirs, visualize_and_save_frame, create_and_wrap_env, \
+    evaluate, create_replay_buffer
 from common import ClickPythonLiteralOption
 from common.platform_domain import PlatformFlattenedActionWrapper
 
@@ -24,7 +25,7 @@ env = create_and_wrap_env(conf.env)
 
 from agents.pdqn_multipass_refactored import MultiPassPDQNAgentRefactored
 agent = MultiPassPDQNAgentRefactored(env=env, conf=conf.agent)
-
+replay_buffer = create_replay_buffer(env=env, conf=conf.replay_buffer)
 total_reward = 0.
 returns = []
 
@@ -49,7 +50,9 @@ for i in range(conf.training.episodes):
         action = action_convertor(act, act_param)
         (next_state, _), reward, done, _ = env.step(action)
         next_state = np.array(next_state, dtype=np.float32, copy=False)
-        agent.step(state, (act, all_action_parameters), reward, next_state, done)
+
+        replay_buffer.append(state, np.concatenate(([act], all_action_parameters)).ravel(), reward, next_state, done)
+        agent.learn(replay_buffer)
         state = next_state
         episode_reward += reward
 
