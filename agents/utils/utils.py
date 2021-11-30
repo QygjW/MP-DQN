@@ -86,7 +86,7 @@ def create_and_wrap_env(conf: ConfigTree):
         env = ScaledParameterisedActionWrapper(env)
     # if monitoring:
     #     env = Monitor(env, directory=os.path.join(dir, str(seed)), video_callable=False, write_upon_reset=False, force=True)
-    # return env
+    return env
 
 
 def soft_update_target_network(source_network, target_network, tau):

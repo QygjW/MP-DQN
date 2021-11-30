@@ -62,7 +62,7 @@ class MultiPassPDQNAgentRefactored:
         self.device = torch.device(device)
 
         print(self.num_actions+self.action_parameter_size)
-        self.replay_memory = Memory(self.replay_memory_size, env.observation_space.spaces[0].shape, (1+self.action_parameter_size,), next_actions=False)
+        self.replay_memory = Memory(self.replay_memory_size, env.observation_space.spaces[0].shape, (1+self.action_parameter_size,))
         self.actor = MultiPassQActor(env.observation_space.spaces[0].shape[0], self.num_actions,
                                      self.action_parameter_sizes, hidden_layers=self.hidden_layers_actor).to(device)
         self.actor_target = MultiPassQActor(env.observation_space.spaces[0].shape[0], self.num_actions,
@@ -106,10 +106,7 @@ class MultiPassPDQNAgentRefactored:
         passthrough_layer.bias.requires_grad = False
         hard_update_target_network(self.actor_param, self.actor_param_target)
 
-    def start_episode(self):
-        pass
-
-    def end_episode(self):
+    def update_exploration(self):
         self._episode += 1
 
         ep = self._episode
@@ -119,7 +116,7 @@ class MultiPassPDQNAgentRefactored:
         else:
             self.epsilon = self.epsilon_final
 
-    def act(self, state):
+    def compute_single_action(self, state):
         with torch.no_grad():
             state = torch.from_numpy(state).to(self.device)
             all_action_parameters = self.actor_param.forward(state)
@@ -192,17 +189,17 @@ class MultiPassPDQNAgentRefactored:
 
         return grad
 
-    def step(self, state, action, reward, next_state, next_action, terminal, time_steps=1):
+    def step(self, state, action, reward, next_state, terminal):
         act, all_action_parameters = action
         self._step += 1
 
         # self._add_sample(state, np.concatenate((all_actions.data, all_action_parameters.data)).ravel(), reward, next_state, terminal)
-        self._add_sample(state, np.concatenate(([act],all_action_parameters)).ravel(), reward, next_state, np.concatenate(([next_action[0]],next_action[1])).ravel(), terminal=terminal)
+        self._add_sample(state, np.concatenate(([act], all_action_parameters)).ravel(), reward, next_state, terminal=terminal)
         if self._step >= self.batch_size and self._step >= self.steps_before_learning:
             self._optimize_td_loss()
             self.updates += 1
 
-    def _add_sample(self, state, action, reward, next_state, next_action, terminal):
+    def _add_sample(self, state, action, reward, next_state, terminal):
         assert len(action) == 1 + self.action_parameter_size
         self.replay_memory.append(state, action, reward, next_state, terminal=terminal)
 
