@@ -52,7 +52,8 @@ for i in tqdm(range(conf.agent.training_episodes)):
     returns.append(episode_reward)
     total_reward += episode_reward
     if i % 100 == 0:
-        print('{0:5s} Total average reward:{1:.4f} Avergae 100 last rewards:{2:.4f}'.format(str(i), total_reward / (i + 1), np.array(returns[-100:]).mean()))
+        print('{0:5s} Total average reward:{1:.4f} Avergae 100 last rewards:{2:.4f}'.format(
+            str(i), total_reward / (i + 1), np.array(returns[-100:]).mean()))
 
 env.close()
 
