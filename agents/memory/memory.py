@@ -74,7 +74,8 @@ class Memory(object):
             return
 
         self.states.append(state)
-        self.actions.append(action)
+        flattened_action = np.concatenate([[action[0]], np.array(action[1]).ravel()])
+        self.actions.append(flattened_action)
         self.rewards.append(reward)
         self.next_states.append(next_state)
         self.terminals.append(terminal)

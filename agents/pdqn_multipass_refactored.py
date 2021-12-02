@@ -23,7 +23,7 @@ class MultiPassPDQNAgentRefactored:
         self.batch_size = conf.get('batch_size', 128)
         self.gamma = conf.get('gamma', 0.99)
         self.replay_memory_size = conf.get('replay_memory_size', 10000)
-        self.steps_before_learning = conf.get('steps_before_learning')
+        self.steps_before_learning = conf.get('steps_before_learning', 0)
         self.learning_rate_actor = conf.learning_rate.get('actor', 0.001)
         self.learning_rate_actor_param = conf.learning_rate.get('actor_param', 0.0001)
         self.inverting_gradients = conf.get('inverting_gradients', True)
@@ -123,23 +123,29 @@ class MultiPassPDQNAgentRefactored:
             # Hausknecht and Stone [2016] use epsilon greedy actions with uniform random action-parameter exploration
             rnd = np.random.uniform()
             if rnd < self.epsilon:
-                action = np.random.choice(self.num_actions)
+                chosen_action_id = np.random.choice(self.num_actions)
                 if not self.OU_noise:
                     all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy, self.action_parameter_max_numpy))
             else:
                 # select maximum action
                 Q_a = self.actor.forward(state.unsqueeze(0), all_action_parameters.unsqueeze(0))
                 Q_a = Q_a.detach().cpu().data.numpy()
-                action = np.argmax(Q_a)
+                chosen_action_id = np.argmax(Q_a)
 
             # add noise only to parameters of chosen action
             all_action_parameters = all_action_parameters.cpu().data.numpy()
-            offset = np.array([self.action_parameter_sizes[i] for i in range(action)], dtype=int).sum()
+            offset = np.array([self.action_parameter_sizes[i] for i in range(chosen_action_id)], dtype=int).sum()
             if self.OU_noise and self.noise is not None:
-                all_action_parameters[offset:offset + self.action_parameter_sizes[action]] += self.noise.sample()[offset:offset + self.action_parameter_sizes[action]]
-            action_parameters = all_action_parameters[offset:offset+self.action_parameter_sizes[action]]
+                all_action_parameters[offset:offset + self.action_parameter_sizes[chosen_action_id]] += self.noise.sample()[offset:offset + self.action_parameter_sizes[chosen_action_id]]
+            formatted_parameters = []
 
-        return action, action_parameters, all_action_parameters
+            for action_id in range(self.num_actions):
+                low = self.action_parameter_offsets[action_id]
+                high = self.action_parameter_offsets[action_id + 1]
+                tmp_action_parameters = all_action_parameters[low: high]
+                formatted_parameters.append(tmp_action_parameters)
+
+        return chosen_action_id, formatted_parameters
 
     def _zero_index_gradients(self, grad, batch_action_indices, inplace=True):
         assert grad.shape[0] == batch_action_indices.shape[0]

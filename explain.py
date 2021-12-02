@@ -1,17 +1,16 @@
 import copy
 import os
-
+import numpy as np
 from pyhocon.config_parser import ConfigFactory
 from tqdm.asyncio import tqdm
-
 from agents.pdqn_multipass_refactored import MultiPassPDQNAgentRefactored
-from agents.utils.utils import create_and_wrap_env, evaluate, save_as_barplot
-import numpy as np
-import matplotlib.pyplot as plt
+from agents.utils.utils import create_and_wrap_env, save_as_barplot, modify_paths_according_to_exp
 
 # 0.0 - Reading the configs
 conf = ConfigFactory.parse_file('configs/meta_conf.conf')
-
+conf = modify_paths_according_to_exp(conf)
+turn_off_exploration = conf.explainability.get('turn_off_exploration', True)
+checkpoint_id = conf.explainability.get('checkpoint_id', 0)
 method = conf.explainability.get('method', 'num_grad')
 assert method == 'num_grad', 'methods other than numerical gradients are not implemeneted.'
 action_type = conf.explainability.get('action_type', "continues")
@@ -26,8 +25,8 @@ _, _ = env.reset()
 agent = MultiPassPDQNAgentRefactored(env=env, conf=conf.agent)
 
 # 1 - Preparing the agent for explaination!
-agent.load_models(os.path.join(conf.saving.save_dir, '4999'))
-if conf.explainability.turn_off_exploration:
+agent.load_models(os.path.join(conf.saving.save_dir, checkpoint_id))
+if turn_off_exploration:
     agent.epsilon_final = 0.
     agent.epsilon = 0.
     agent.noise = None
@@ -55,5 +54,5 @@ for state_id in range(len(states)):
     # normalize
     grad = grad / np.sum(grad)
     if save_dir:
-        save_as_barplot(data=grad, file_name='state_' + str(state_id) + '.png', save_dir=save_dir)
+        save_as_barplot(data=grad, file_name='xai_at_state_' + str(state_id) + '.png', save_dir=save_dir)
 print("Goodbye")

@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
+
+
 class MultiPassQActor(nn.Module):
 
     def __init__(self, state_size, action_size, action_parameter_size_list, hidden_layers,

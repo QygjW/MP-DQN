@@ -2,3 +2,7 @@ setuptools~=57.4.0
 gym~=0.10.5
 torch~=1.10.0
 pyhocon~=0.3.58
+numpy~=1.19.5
+tdqm
+pandas
+
